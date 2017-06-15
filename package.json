@@ -1,0 +1,21 @@
+{
+  "name": "gauracraft",
+  "version": "1.0.0",
+  "description": "A network game for my students.",
+  "scripts": {
+    "test": "mocha -w"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ntgaura/gauracraft.git"
+  },
+  "keywords": [
+    "game"
+  ],
+  "author": "gaura <nt.gaura@gmail.com>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ntgaura/gauracraft/issues"
+  },
+  "homepage": "https://github.com/ntgaura/gauracraft#readme"
+}
