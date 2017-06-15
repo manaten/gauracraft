@@ -17,5 +17,12 @@
   "bugs": {
     "url": "https://github.com/ntgaura/gauracraft/issues"
   },
-  "homepage": "https://github.com/ntgaura/gauracraft#readme"
+  "homepage": "https://github.com/ntgaura/gauracraft#readme",
+  "dependencies": {
+    "babel-loader": "^7.0.0",
+    "babel-preset-es2015": "^6.24.1",
+    "mocha": "^3.4.2",
+    "socket.io": "^2.0.3",
+    "webpack": "^2.6.1"
+  }
 }
