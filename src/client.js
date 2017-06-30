@@ -1,22 +1,24 @@
 import { GraphicPipeline } from "./graphic_pipeline.js";
 
-function captureWebGL(canvas) {
-  var gl;
-  try
-  {
-    gl = canvas.getContext( "experimental-webgl" );
-  } catch ( e ) {
-    throw "WebGLにブラウザが対応していません";
+onload = function() {
+  function captureWebGL(canvas) {
+    var gl;
+    try
+    {
+      gl = canvas.getContext( "webgl" ) || canvas.getContext( "experimental-webgl" );
+    } catch ( e ) {
+      throw "WebGLにブラウザが対応していません";
+    }
+
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+
+    return gl;
   }
 
-  gl.viewportWidth = canvas.clientWidth;
-  gl.viewportHeight = canvas.clientHeight;
+  const canvas = document.getElementById("screen");
+  const gl = captureWebGL(canvas);
+  const pipeline = new GraphicPipeline(canvas, gl);
 
-  return gl;
+  pipeline.render();
 }
-
-const canvas = document.getElementById("screen");
-const gl = captureWebGL(canvas);
-const pipeline = new GraphicPipeline(gl);
-
-pipeline.render();
