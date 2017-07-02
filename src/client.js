@@ -1,13 +1,14 @@
-import { GraphicPipeline } from "./graphic_pipeline.js";
+import { World } from './world.js';
+import { GraphicPipeline } from './graphic_pipeline.js';
 
 onload = function() {
   function captureWebGL(canvas) {
     var gl;
     try
     {
-      gl = canvas.getContext( "webgl" ) || canvas.getContext( "experimental-webgl" );
+      gl = canvas.getContext( 'webgl' ) || canvas.getContext( 'experimental-webgl' );
     } catch ( e ) {
-      throw "WebGLにブラウザが対応していません";
+      throw 'WebGLにブラウザが対応していません';
     }
 
     canvas.width = canvas.clientWidth;
@@ -16,9 +17,12 @@ onload = function() {
     return gl;
   }
 
-  const canvas = document.getElementById("screen");
+  const canvas = document.getElementById( 'screen' );
   const gl = captureWebGL(canvas);
-  const pipeline = new GraphicPipeline(canvas, gl);
+  const world = new World();
+  const pipeline = new GraphicPipeline(canvas, gl, world);
 
-  pipeline.render();
+  setInterval( () => { 
+    pipeline.render();
+  }, 16);
 }

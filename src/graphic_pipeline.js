@@ -1,23 +1,14 @@
 import { mat4 } from 'gl-matrix';
 
-// 指定された4点を結ぶ四角形ポリゴンを張る
-// これら4点は同じ長さの配列になっている必要がある
-function quad_of( p1, p2, p3, p4 ) {
-  console.assert( p1.length == p2.length );
-  console.assert( p1.length == p3.length );
-  console.assert( p1.length == p4.length );
-
-  return [p1, p2, p3, p3, p4, p1].reduce( (a, b) => a.concat(b) );
-}
-
 // 一連のGPUの制御をまとめたコードです
 // このコードで構成されたパイプラインを使って描画を行います
 export class GraphicPipeline {
   // コンストラクタ
   // @param gl WebGLのインスタンス
-  constructor (canvas, gl) {
+  constructor (canvas, gl, world) {
     this.canvas = canvas;
     this.gl = gl;
+    this.world = world;
 
     this.fov = 90;
     this.min = 0.1;
@@ -89,7 +80,7 @@ export class GraphicPipeline {
       varying vec4 v_color;
       varying vec2 v_tex_coord;
       void main() {
-        gl_Position = proj * view * ( model * vec4( a_pos, 1.0 ) );
+        gl_Position = proj * view * model * vec4( a_pos, 1.0 );
         v_color = a_color;
         v_tex_coord = a_tex_coord;
       }
@@ -125,71 +116,17 @@ export class GraphicPipeline {
     this.a_tex_coord = gl.getAttribLocation( program, "a_tex_coord" );
     this.a_color = gl.getAttribLocation( program, "a_color" );
 
-    // TODO: とりあえず1つ書いてみたいので適当に作ったから外から入れられるようにする
-    let blocks = []
-    for ( let x = 0; x < 10; ++x ) {
-      for ( let y = 0; y < 10; ++y ) {
-        for ( let z = 0; z < 10; ++z ) {
-          // TODO: 隣接する部分が埋まってたら作らないようにする
-
-          // ブロックの天井部分
-          blocks = blocks.concat(quad_of(
-            [ x,       y,       z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y,       z, 1.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x,       y + 1.0, z, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0 ]
-          ));
-
-          // 床部分
-          blocks = blocks.concat(quad_of(
-            [ x,       y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y,       z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x,       y,       z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-          ));
-
-          // 前
-          blocks = blocks.concat(quad_of(
-            [ x,       y      , z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x,       y      , z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-          ));
-
-          // 後ろ
-          blocks = blocks.concat(quad_of(
-            [ x,       y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x,       y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-          ));
-
-          // 左
-          blocks = blocks.concat(quad_of(
-            [ x,       y      , z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x,       y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x,       y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x,       y      , z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-          ));
-
-          // 右
-          blocks = blocks.concat(quad_of(
-            [ x + 1.0, y      , z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y + 1.0, z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ],
-            [ x + 1.0, y      , z, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0 ]
-          ));
-        }
-      }
-    }
+    // Worldから現在位置のブロックの頂点情報を引っ張り出す
+    const [ verticies, vertex_count ] = this.world.create_verticies();
 
     // WebGLの頂点バッファに変換する
-    blocks = new Float32Array(blocks);
+    const blocks = new Float32Array(verticies);
+    if( this.blocks ) gl.deleteBuffer( this.blocks );
     this.blocks = gl.createBuffer();
     gl.bindBuffer( gl.ARRAY_BUFFER, this.blocks );
     gl.bufferData( gl.ARRAY_BUFFER, blocks, gl.STATIC_DRAW );
 
-    this.blocks.vertex_count = 10 * 10 * 10 * 6 * 6;
+    this.blocks.vertex_count = vertex_count;
 
     // テクスチャ
     this.texture = gl.createTexture();
@@ -197,7 +134,8 @@ export class GraphicPipeline {
     gl.bindTexture( gl.TEXTURE_2D, this.texture );
     gl.uniform1i( this.sampler, 0 );
 
-    // とりあえず芝っぽい感じにしておく。あとで画像から拾うようにでもする
+    // とりあえず芝っぽい感じにしておく。
+    // TODO: テクスチャを画像から拾うようにする
     let image = [ ];
     for( let y = 0; y < 128; ++y ) {
       for( let x = 0; x < 128; ++x ) {
@@ -214,6 +152,7 @@ export class GraphicPipeline {
     gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST );
     gl.texParameteri( gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST );
   }
+
 
   render() {
     this.follow_screen_settings();
@@ -236,6 +175,8 @@ export class GraphicPipeline {
   render_blocks() {
     // ブロックがないなら描画しない
     if ( this.blocks == null ) return;
+    if ( this.blocks.vertex_count == null ) return;
+    if ( this.blocks.vertex_count == 0 ) return;
 
     // バッファに流し込む
     this.draw_buffer( this.blocks );
@@ -319,17 +260,9 @@ export class GraphicPipeline {
   {
     const gl = this.gl;
 
-    // const view_mat = mat4.create();
-
-    // mat4.rotate( view_mat, view_mat, -ang[0] - Math.PI / 2, [ 1, 0, 0 ] );
-    // mat4.rotate( view_mat, view_mat, +ang[1]              , [ 0, 0, 1 ] );
-    // mat4.rotate( view_mat, view_mat, -ang[2]              , [ 0, 1, 0 ] );
-
-    // mat4.translate( view_mat, view_mat, [ -pos[0], -pos[1], -pos[2] ] );
-
-
+    // TODO: プレイヤーのもっている視点を反映する
     const view_mat = mat4.create();
-    mat4.lookAt(view_mat, [8, 0, 15], [5, 5, 5], [0, 1, 0]);
+    mat4.lookAt(view_mat, [1, 2, 1], [0, 0, 0], [0, 1, 0]);
 
     gl.uniformMatrix4fv( this.view, false, view_mat );
   }
