@@ -1,14 +1,16 @@
-import { mat4 } from 'gl-matrix';
+import { mat4, vec3 } from 'gl-matrix';
+import { World } from './world.js';
 
 // 一連のGPUの制御をまとめたコードです
 // このコードで構成されたパイプラインを使って描画を行います
 export class GraphicPipeline {
   // コンストラクタ
   // @param gl WebGLのインスタンス
-  constructor (canvas, gl, world) {
+  constructor (canvas, gl, world, player) {
     this.canvas = canvas;
     this.gl = gl;
     this.world = world;
+    this.player = player;
 
     this.fov = 90;
     this.min = 0.1;
@@ -116,17 +118,8 @@ export class GraphicPipeline {
     this.a_tex_coord = gl.getAttribLocation( program, "a_tex_coord" );
     this.a_color = gl.getAttribLocation( program, "a_color" );
 
-    // Worldから現在位置のブロックの頂点情報を引っ張り出す
-    const [ verticies, vertex_count ] = this.world.create_verticies();
-
-    // WebGLの頂点バッファに変換する
-    const blocks = new Float32Array(verticies);
-    if( this.blocks ) gl.deleteBuffer( this.blocks );
+    // 頂点
     this.blocks = gl.createBuffer();
-    gl.bindBuffer( gl.ARRAY_BUFFER, this.blocks );
-    gl.bufferData( gl.ARRAY_BUFFER, blocks, gl.STATIC_DRAW );
-
-    this.blocks.vertex_count = vertex_count;
 
     // テクスチャ
     this.texture = gl.createTexture();
@@ -173,6 +166,23 @@ export class GraphicPipeline {
 
   // ブロックを描画する
   render_blocks() {
+    const gl = this.gl;
+    // Worldから現在位置のブロックの頂点情報を引っ張り出す
+    const eye_pos = this.player.get_eye_pos();
+    const chunk_pos = World.calc_chunk_pos( eye_pos[0], eye_pos[1], eye_pos[2] );
+
+    if( !this.last_chunk_pos || this.last_chunk_pos[0] != chunk_pos[0] || this.last_chunk_pos[1] != chunk_pos[1] || this.last_chunk_pos[2] != chunk_pos[2] ) {
+      const [ verticies, vertex_count ] = this.world.create_verticies(eye_pos[0], eye_pos[1], eye_pos[2]);
+
+      // WebGLの頂点バッファに変換する
+      gl.bindBuffer( gl.ARRAY_BUFFER, this.blocks );
+      gl.bufferData( gl.ARRAY_BUFFER, new Float32Array(verticies), gl.STATIC_DRAW );
+
+      this.blocks.vertex_count = vertex_count;
+
+      this.last_chunk_pos = chunk_pos;
+    }
+
     // ブロックがないなら描画しない
     if ( this.blocks == null ) return;
     if ( this.blocks.vertex_count == null ) return;
@@ -259,10 +269,19 @@ export class GraphicPipeline {
   update_view( )
   {
     const gl = this.gl;
+    const player = this.player;
 
-    // TODO: プレイヤーのもっている視点を反映する
+    // プレイヤーのもっている視点を反映する
+    const eye_pos = player.get_eye_pos();
+    const yaw = player.get_yaw();
+    const pitch = player.get_pitch();
+    const roll = player.get_roll();
+
     const view_mat = mat4.create();
-    mat4.lookAt(view_mat, [1, 2, 1], [0, 0, 0], [0, 1, 0]);
+    mat4.rotate( view_mat, view_mat, -yaw,   [ 1, 0, 0 ] );
+    mat4.rotate( view_mat, view_mat, +pitch, [ 0, 1, 0 ] );
+    mat4.rotate( view_mat, view_mat, -roll,  [ 0, 0, 1 ] );
+    mat4.translate( view_mat, view_mat, vec3.negate(vec3.create(), eye_pos) );
 
     gl.uniformMatrix4fv( this.view, false, view_mat );
   }

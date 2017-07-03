@@ -5,6 +5,7 @@ class AirBlock {
   get code() { return AirBlock.code; }
   get render() { return false; }
   get transparent() { return true; }
+  get collidable() { return false; }
 }
 
 // 土ブロック
@@ -14,6 +15,7 @@ class DirtBlock {
   get code() { return DirtBlock.code; }
   get render() { return true; }
   get transparent() { return false; }
+  get collidable() { return true; }
 }
 
 // ガラスブロック
@@ -23,6 +25,7 @@ class GlassBlock {
   get code() { return GlassBlock.code; }
   get render() { return true; }
   get transparent() { return true; }
+  get collidable() { return true; }
 }
 
 export const Block = {
